@@ -19,6 +19,7 @@ import os
 import sys
 import argparse
 import logging
+import json
 import pandas as pd
 from typing import List, Dict, Optional
 from pathlib import Path
@@ -433,7 +434,7 @@ def main():
     
     parser.add_argument(
         '--mode', 
-        choices=['demo', 'train', 'api', 'predict'],
+        choices=['demo', 'train', 'api', 'predict', 'crossval'],
         default='demo',
         help='Mode to run the system in'
     )
@@ -469,6 +470,13 @@ def main():
         type=int,
         default=16,
         help='Training batch size'
+    )
+    
+    parser.add_argument(
+        '--k_folds',
+        type=int,
+        default=5,
+        help='Number of folds for cross-validation'
     )
     
     parser.add_argument(
@@ -544,6 +552,41 @@ def main():
             debug=False,
             threaded=True
         )
+    
+    elif args.mode == 'crossval':
+        # K-fold cross-validation according to report
+        if not args.data:
+            logger.error("--data argument required for crossval mode")
+            return
+        
+        # Load data
+        df = system.load_data(args.data)
+        if df is None:
+            return
+        
+        # Preprocess data
+        processed_df = system.preprocess_data(df)
+        if processed_df is None:
+            return
+        
+        texts = processed_df['cleaned_text'].tolist() if 'cleaned_text' in processed_df.columns else processed_df['text'].tolist()
+        labels = processed_df['label'].tolist()
+        
+        # Perform cross-validation
+        cv_results = system.detector.cross_validate(
+            texts, labels,
+            k_folds=args.k_folds,
+            batch_size=args.batch_size,
+            epochs=args.epochs,
+            learning_rate=2e-5
+        )
+        
+        # Save results
+        Path('results').mkdir(exist_ok=True)
+        with open('results/crossval_results.json', 'w', encoding='utf-8') as f:
+            json.dump(cv_results, f, ensure_ascii=False, indent=2)
+        
+        logger.info("Cross-validation results saved to results/crossval_results.json")
     
     else:
         logger.error(f"Unknown mode: {args.mode}")

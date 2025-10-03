@@ -19,6 +19,12 @@ Setup
 1) Install dependencies
    pip install -r requirements.txt
 
+Windows quick start (scripts)
+- Setup and run API: scripts\setup_and_run_api.bat
+- Train transformer model (optional): scripts\train_transformer.bat [path\to\dataset.csv]
+- Train TF-IDF baseline (uses included splits): scripts\train_baseline_tfidf.bat
+- Start Streamlit UI: scripts\start_streamlit.bat
+
 2) Run the pipeline
    # Explore and save processed dataset
    python src/data_loader.py
