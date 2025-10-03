@@ -57,6 +57,11 @@ Best models (on your run)
 Run the app
    streamlit run src/app.py
 
+Docker (optional)
+- Build: docker build -t fake-kannada-api .
+- Run:   docker run --rm -p 5000:5000 fake-kannada-api
+- Open:  http://localhost:5000
+
 Notes
 - GPU recommended for BERT; CPU works for TF-IDF.
 - Input is preprocessed to match training settings (Kannada script, stopwords, etc.).

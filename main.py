@@ -27,6 +27,22 @@ import joblib
 import warnings
 warnings.filterwarnings('ignore')
 
+# Global config
+try:
+    import config
+except ImportError:
+    class _Cfg:
+        MODEL_DEFAULT = 'mbert'
+        MODEL_MAP = {'mbert': 'bert-base-multilingual-cased', 'xlm_roberta': 'xlm-roberta-base'}
+        MAX_LENGTH = 256
+        EPOCHS = 3
+        BATCH_SIZE = 16
+        LEARNING_RATE = 2e-5
+        PERFORMANCE_TARGET = 2.0
+        ACCURACY_TARGET = 0.90
+        SUPPORTED_LANGUAGES = ['kn', 'en', 'hi']
+    config = _Cfg()
+
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
@@ -66,13 +82,10 @@ class FakeNewsDetectionSystem:
         self.feature_extractor = None
         self.detector = None
         
-        # Configuration
-        self.model_configs = {
-            'mbert': 'bert-base-multilingual-cased',
-            'xlm_roberta': 'xlm-roberta-base'
-        }
+        # Configuration from global config
+        self.model_configs = dict(config.MODEL_MAP)
         
-        self.supported_languages = ['kn', 'en', 'hi']  # Kannada, English, Hindi
+        self.supported_languages = list(getattr(config, 'SUPPORTED_LANGUAGES', ['kn','en','hi']))  # Kannada, English, Hindi
         
         # Fallback classic ML components (per report recommendation)
         self.tfidf_vectorizer = None
@@ -98,7 +111,7 @@ class FakeNewsDetectionSystem:
             model_name = self.model_configs.get(model_type, self.model_configs['mbert'])
             self.feature_extractor = MultilingualFeatureExtractor(
                 model_name=model_name,
-                max_length=512
+                max_length=getattr(config, 'MAX_LENGTH', 256)
             )
             logger.info("✓ Feature extractor loaded successfully")
             
@@ -106,7 +119,7 @@ class FakeNewsDetectionSystem:
             logger.info("Loading fake news detector...")
             self.detector = MultilingualFakeNewsDetector(
                 model_name=model_name,
-                max_length=512
+                max_length=getattr(config, 'MAX_LENGTH', 256)
             )
             logger.info("✓ Detector initialized successfully")
             
@@ -268,6 +281,20 @@ class FakeNewsDetectionSystem:
             logger.info("✓ Model training completed successfully")
             logger.info(f"Final Accuracy: {results['accuracy']:.4f}")
             logger.info(f"Final F1-Score: {results['f1_score']:.4f}")
+
+            # Check report targets
+            perf_target = getattr(config, 'PERFORMANCE_TARGET', 2.0)
+            acc_target = getattr(config, 'ACCURACY_TARGET', 0.90)
+            avg_inf = results.get('avg_inference_time_per_sample')
+            if avg_inf is not None:
+                if avg_inf <= perf_target:
+                    logger.info(f"✓ Performance requirement met: {avg_inf:.4f}s <= {perf_target}s")
+                else:
+                    logger.warning(f"✗ Performance requirement not met: {avg_inf:.4f}s > {perf_target}s")
+            if results['accuracy'] >= acc_target:
+                logger.info(f"✓ Accuracy requirement met: {results['accuracy']:.4f} >= {acc_target}")
+            else:
+                logger.warning(f"✗ Accuracy requirement not met: {results['accuracy']:.4f} < {acc_target}")
             
             return {
                 'training_history': training_history,
@@ -454,21 +481,21 @@ def main():
     parser.add_argument(
         '--model',
         choices=['mbert', 'xlm_roberta'],
-        default='mbert',
+        default=getattr(config, 'MODEL_DEFAULT', 'mbert'),
         help='Transformer model to use'
     )
     
     parser.add_argument(
         '--epochs',
         type=int,
-        default=3,
+        default=getattr(config, 'EPOCHS', 3),
         help='Number of training epochs'
     )
     
     parser.add_argument(
         '--batch_size',
         type=int,
-        default=16,
+        default=getattr(config, 'BATCH_SIZE', 16),
         help='Training batch size'
     )
     

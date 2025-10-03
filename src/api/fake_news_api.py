@@ -20,7 +20,19 @@ from concurrent.futures import ThreadPoolExecutor
 import joblib
 
 # Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(ROOT_DIR)
+
+# Global config
+try:
+    import config
+except Exception:
+    class _Cfg:
+        MODEL_DEFAULT = 'mbert'
+        MODEL_MAP = {'mbert': 'bert-base-multilingual-cased', 'xlm_roberta': 'xlm-roberta-base'}
+        MAX_LENGTH = 256
+        SECRET_KEY = 'dev-secret-key'
+    config = _Cfg()
 
 # Import our modules
 from src.models.multilingual_classifier import MultilingualFakeNewsDetector
@@ -35,7 +47,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', getattr(config, 'SECRET_KEY', 'dev-secret-key'))
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max request size
 
 # Global variables for model and preprocessor
@@ -71,10 +83,10 @@ def load_models():
             preprocessor = MultilingualPreprocessor()
             logger.info("Preprocessor loaded successfully")
             
-            # Initialize detector (will load model if available)
+# Initialize detector (will load model if available)
             detector = MultilingualFakeNewsDetector(
-                model_name='bert-base-multilingual-cased',
-                max_length=512
+                model_name=config.MODEL_MAP.get(getattr(config, 'MODEL_DEFAULT', 'mbert'), 'bert-base-multilingual-cased'),
+                max_length=getattr(config, 'MAX_LENGTH', 256)
             )
             
             # Try to load pre-trained transformer model if available
