@@ -47,7 +47,8 @@ def load_tfidf_pipeline():
 # Load BERT (for embeddings) + Logistic Regression (optional)
 @st.cache_resource(show_spinner=False)
 def load_bert_pipeline():
-    model_path = Path('models/bert_bert_logistic_regression.joblib')
+    # Note: saved file name uses double underscore in this project
+    model_path = Path('models/bert_bert__logistic_regression.joblib')
     if not model_path.exists():
         return None, None, None
     try:

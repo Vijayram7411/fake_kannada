@@ -21,6 +21,8 @@ import argparse
 import logging
 import pandas as pd
 from typing import List, Dict, Optional
+from pathlib import Path
+import joblib
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -70,6 +72,10 @@ class FakeNewsDetectionSystem:
         }
         
         self.supported_languages = ['kn', 'en', 'hi']  # Kannada, English, Hindi
+        
+        # Fallback classic ML components (per report recommendation)
+        self.tfidf_vectorizer = None
+        self.lr_model = None
         
     def initialize_components(self, model_type: str = 'mbert'):
         """
@@ -292,15 +298,51 @@ class FakeNewsDetectionSystem:
             language = self.preprocessor.detect_language(text)
             cleaned_text = self.preprocessor.clean_text(text, language)
             
-            # Make prediction
+            prediction = None
+            confidence = None
+            backend = None
+            
+            # Primary: transformer model if available
             if self.detector.model is not None:
-                predictions, confidences = self.detector.predict([cleaned_text])
-                prediction = int(predictions[0])
-                confidence = float(confidences[0])
-            else:
-                logger.warning("Model not trained yet, cannot make predictions")
-                prediction = None
-                confidence = None
+                try:
+                    predictions, confidences = self.detector.predict([cleaned_text])
+                    prediction = int(predictions[0])
+                    confidence = float(confidences[0])
+                    backend = 'transformer'
+                except Exception as e:
+                    logger.warning(f"Transformer prediction failed: {e}")
+                    prediction = None
+                    confidence = None
+            
+            # Fallback: TF-IDF + Logistic Regression as per report
+            if prediction is None:
+                # Lazy-load fallback models
+                if self.tfidf_vectorizer is None or self.lr_model is None:
+                    try:
+                        vec_path = Path('models') / 'tfidf_vectorizer.joblib'
+                        lr_path = Path('models') / 'logistic_regression.joblib'
+                        if vec_path.exists() and lr_path.exists():
+                            self.tfidf_vectorizer = joblib.load(vec_path)
+                            self.lr_model = joblib.load(lr_path)
+                            logger.info("Loaded TF-IDF + Logistic Regression fallback models")
+                        else:
+                            logger.warning("Fallback TF-IDF artifacts not found in models/; cannot predict")
+                    except Exception as e:
+                        logger.warning(f"Failed to load fallback models: {e}")
+                
+                if self.tfidf_vectorizer is not None and self.lr_model is not None:
+                    try:
+                        X = self.tfidf_vectorizer.transform([cleaned_text])
+                        pred = int(self.lr_model.predict(X)[0])
+                        proba = self.lr_model.predict_proba(X)[0] if hasattr(self.lr_model, 'predict_proba') else None
+                        conf = float(proba[pred]) if proba is not None else 0.75
+                        prediction = pred
+                        confidence = conf
+                        backend = 'tfidf_lr'
+                    except Exception as e:
+                        logger.warning(f"TF-IDF fallback prediction failed: {e}")
+                        prediction = None
+                        confidence = None
             
             # Extract features
             features = self.preprocessor.extract_language_features(text)
@@ -313,6 +355,7 @@ class FakeNewsDetectionSystem:
                 'prediction': prediction,
                 'confidence': confidence,
                 'prediction_label': 'Fake' if prediction == 1 else 'Real' if prediction == 0 else 'Unknown',
+                'backend': backend,
                 'features': features
             }
             

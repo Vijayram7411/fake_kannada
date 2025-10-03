@@ -17,6 +17,7 @@ from datetime import datetime
 import threading
 import queue
 from concurrent.futures import ThreadPoolExecutor
+import joblib
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -43,6 +44,10 @@ preprocessor = None
 model_loaded = False
 loading_lock = threading.Lock()
 
+# Fallback TF-IDF + Logistic Regression (as per report’s best model)
+tfidf_vectorizer = None
+lr_model = None
+
 # Performance monitoring
 request_times = []
 request_count = 0
@@ -53,7 +58,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 
 def load_models():
     """Load the trained models and preprocessor"""
-    global detector, preprocessor, model_loaded
+    global detector, preprocessor, model_loaded, tfidf_vectorizer, lr_model
     
     with loading_lock:
         if model_loaded:
@@ -72,17 +77,30 @@ def load_models():
                 max_length=512
             )
             
-            # Try to load pre-trained model if available
+            # Try to load pre-trained transformer model if available
             model_path = os.path.join('models', 'multilingual_fake_news_model.pth')
             if os.path.exists(model_path):
                 try:
                     detector.load_model(model_path)
-                    logger.info(f"Pre-trained model loaded from {model_path}")
+                    logger.info(f"Pre-trained transformer model loaded from {model_path}")
                 except Exception as e:
-                    logger.warning(f"Could not load pre-trained model: {e}")
-                    logger.info("Using default model configuration")
+                    logger.warning(f"Could not load pre-trained transformer model: {e}")
+                    logger.info("Proceeding without transformer model; will use fallback if available")
             else:
-                logger.info("No pre-trained model found, using default configuration")
+                logger.info("No pre-trained transformer model found; will use fallback if available")
+            
+            # Load TF-IDF + Logistic Regression fallback (recommended by report)
+            try:
+                vec_path = os.path.join('models', 'tfidf_vectorizer.joblib')
+                lr_path = os.path.join('models', 'logistic_regression.joblib')
+                if os.path.exists(vec_path) and os.path.exists(lr_path):
+                    tfidf_vectorizer = joblib.load(vec_path)
+                    lr_model = joblib.load(lr_path)
+                    logger.info("TF-IDF + Logistic Regression fallback loaded successfully")
+                else:
+                    logger.info("TF-IDF fallback artifacts not found; API will run without fallback")
+            except Exception as e:
+                logger.warning(f"Failed to load TF-IDF fallback models: {e}")
             
             model_loaded = True
             logger.info("Models loaded successfully!")
@@ -102,7 +120,9 @@ def get_model_info() -> Dict:
         "detector_model": detector.model_name if detector else "Not available",
         "max_length": detector.max_length if detector else "Not available",
         "supported_languages": ["Kannada", "English", "Hindi"],
-        "model_loaded": model_loaded
+        "model_loaded": model_loaded,
+        "fallback_available": bool(tfidf_vectorizer is not None and lr_model is not None),
+        "fallback_model": "TF-IDF + Logistic Regression" if (tfidf_vectorizer and lr_model) else None
     }
 
 def process_text_async(text: str, include_features: bool = False) -> Dict:
@@ -119,17 +139,34 @@ def process_text_async(text: str, include_features: bool = False) -> Dict:
         if include_features:
             features = preprocessor.extract_language_features(text)
         
-        # Make prediction if model is trained
+        # Make prediction using transformer model if available, otherwise fallback
         prediction = None
         confidence = None
         
+        used_backend = None
         if detector and detector.model is not None:
             try:
                 predictions, confidences = detector.predict([cleaned_text])
                 prediction = int(predictions[0])
                 confidence = float(confidences[0])
+                used_backend = 'transformer'
             except Exception as e:
-                logger.warning(f"Prediction failed: {e}")
+                logger.warning(f"Transformer prediction failed: {e}")
+                prediction = None
+                confidence = None
+        
+        # Fallback: TF-IDF + Logistic Regression (per report recommendation)
+        if prediction is None and tfidf_vectorizer is not None and lr_model is not None:
+            try:
+                X = tfidf_vectorizer.transform([cleaned_text])
+                pred = int(lr_model.predict(X)[0])
+                proba = lr_model.predict_proba(X)[0]
+                conf = float(proba[pred]) if hasattr(lr_model, 'predict_proba') else 0.75
+                prediction = pred
+                confidence = conf
+                used_backend = 'tfidf_lr'
+            except Exception as e:
+                logger.warning(f"TF-IDF fallback prediction failed: {e}")
                 prediction = None
                 confidence = None
         
@@ -146,6 +183,7 @@ def process_text_async(text: str, include_features: bool = False) -> Dict:
             "prediction_label": "Fake" if prediction == 1 else "Real" if prediction == 0 else "Unknown",
             "features": features,
             "processing_time": processing_time,
+            "backend": used_backend,
             "timestamp": datetime.now().isoformat()
         }
         
