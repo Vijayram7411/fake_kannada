@@ -1,0 +1,9 @@
+{
+  "default_threshold": 0.25,
+  "metrics": {
+    "threshold": 0.25,
+    "f1_fake": 0.9995316159250586,
+    "precision_fake": 0.9990636704119851,
+    "recall_fake": 1.0
+  }
+}

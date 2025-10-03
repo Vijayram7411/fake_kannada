@@ -1,0 +1,114 @@
+
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Kannada Fake News Detection - Model Comparison</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; }
+                h1 { color: #333; text-align: center; }
+                .table { margin: 20px auto; border-collapse: collapse; width: 100%; }
+                .table th { background-color: #4CAF50; color: white; padding: 12px; text-align: center; }
+                .table td { padding: 8px 12px; text-align: center; border: 1px solid #ddd; }
+                .table tr:nth-child(even) { background-color: #f2f2f2; }
+                .rank-1 { background-color: #FFD700 !important; font-weight: bold; }
+                .rank-2 { background-color: #C0C0C0 !important; font-weight: bold; }
+                .rank-3 { background-color: #CD7F32 !important; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <h1>Kannada Fake News Detection - Model Performance Comparison</h1>
+            <p style="text-align: center; color: #666;">
+                Comprehensive evaluation of all models trained on the Kannada fake news dataset
+            </p>
+            <table border="1" class="dataframe table table-striped table-bordered" id="model-comparison">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Rank</th>
+      <th>Model</th>
+      <th>Type</th>
+      <th>Accuracy</th>
+      <th>Precision</th>
+      <th>Recall</th>
+      <th>F1 Score</th>
+      <th>AUC</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>Logistic Regression</td>
+      <td>Traditional ML</td>
+      <td>0.9932</td>
+      <td>0.9932</td>
+      <td>0.9932</td>
+      <td>0.9932</td>
+      <td>0.9961</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Random Forest</td>
+      <td>Traditional ML</td>
+      <td>0.9932</td>
+      <td>0.9932</td>
+      <td>0.9932</td>
+      <td>0.9932</td>
+      <td>0.9987</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>SVM</td>
+      <td>Traditional ML</td>
+      <td>0.9932</td>
+      <td>0.9932</td>
+      <td>0.9932</td>
+      <td>0.9932</td>
+      <td>0.9976</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>BERT + Logistic Regression</td>
+      <td>BERT-based</td>
+      <td>0.9932</td>
+      <td>0.0000</td>
+      <td>0.0000</td>
+      <td>0.9932</td>
+      <td>0.0000</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Naive Bayes</td>
+      <td>Traditional ML</td>
+      <td>0.9863</td>
+      <td>0.9863</td>
+      <td>0.9863</td>
+      <td>0.9863</td>
+      <td>0.9983</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>BERT + Random Forest</td>
+      <td>BERT-based</td>
+      <td>0.9795</td>
+      <td>0.0000</td>
+      <td>0.0000</td>
+      <td>0.9794</td>
+      <td>0.0000</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>BERT + SVM</td>
+      <td>BERT-based</td>
+      <td>0.9795</td>
+      <td>0.0000</td>
+      <td>0.0000</td>
+      <td>0.9794</td>
+      <td>0.0000</td>
+    </tr>
+  </tbody>
+</table>
+            <p style="text-align: center; margin-top: 30px; color: #888; font-size: 12px;">
+                Generated on: 2025-10-03 10:07:17
+            </p>
+        </body>
+        </html>
+        
